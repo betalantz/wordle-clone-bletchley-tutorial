@@ -9,5 +9,6 @@ export default defineConfig({
                 rewrite: (path) => path.replace(/^\/api/, ''),
             }
         }
-    }
+    },
+    optimizeDeps: { exclude: ["fsevents"]},
 })

@@ -2,8 +2,11 @@ import "./style.css";
 
 // *******************
 // Constants
+const WORD_LENGTH = 5
 const keyboard = document.querySelector('[data-keyboard]')
 const guessGrid = document.querySelector('[data-guess-grid]')
+
+let targetWord;
 
 // ******************
 // Utility Functions
@@ -15,7 +18,12 @@ function getActiveTiles() {
 // **********************
 // Game logic functions
 
-
+async function getRandomWord() {
+  const response = await fetch(`/api/randomWord?api_key=${import.meta.env.VITE_WORDNIK_KEY}&minLength=${WORD_LENGTH}&maxLength=${WORD_LENGTH}`)
+  const wordJSON = await response.json()
+  targetWord = wordJSON.word
+  console.log("🚀 ~ getRandomWord ~ targetWord:", targetWord)
+}
 
 // ***************************
 // Game Interaction Functions
@@ -38,6 +46,15 @@ function deleteKey() {
   delete lastTile.dataset.state
 }
 
+function submitGuess() {
+  const activeTiles = [...getActiveTiles()];
+  const guess = activeTiles.reduce((word, tile) => {
+      return word + tile.dataset.letter
+  }, "")
+  console.log("🚀 ~ guess ~ guess:", guess)
+  
+}
+
 // **************************
 // Event handlers
 
@@ -46,13 +63,33 @@ function handleMouseClick(e) {
      pressKey(e.target.dataset.key)
      return;
   }
-  console.log(e.target)
+  // console.log(e.target)
   if (e.target.matches("[data-delete]")) {
     console.log('delete pressed')
     deleteKey()
     return;
   }
+
+  if (e.target.matches("[data-enter]")) {
+    submitGuess()
+    return;
+  }
+}
+
+function handleKeyPress(e){
+  console.log(e.key)
+  if (e.key.match(/^[a-z]$/)) {
+    pressKey(e.key)
+    return
+  }
+
+  if (e.key === "Backspace" || e.key === "Delete") {
+    deleteKey()
+  }
 }
 
 
 document.addEventListener('click', handleMouseClick)
+document.addEventListener('keydown', handleKeyPress)
+
+getRandomWord()

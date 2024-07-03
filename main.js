@@ -2,27 +2,89 @@ import "./style.css";
 
 // *******************
 // Constants
-const WORD_LENGTH = 5
-const keyboard = document.querySelector('[data-keyboard]')
-const guessGrid = document.querySelector('[data-guess-grid]')
+const WORD_LENGTH = 5;
+const keyboard = document.querySelector("[data-keyboard]");
+const guessGrid = document.querySelector("[data-guess-grid]");
+const alertContainer = document.querySelector("[data-alert-container]");
 
 let targetWord;
 
 // ******************
 // Utility Functions
 
+async function getRandomWord() {
+  const response = await fetch(
+    `/api/randomWord?api_key=${
+      import.meta.env.VITE_WORDNIK_KEY
+    }&minLength=${WORD_LENGTH}&maxLength=${WORD_LENGTH}`
+  );
+  const wordJSON = await response.json();
+  if (!(/^[a-z]+$/.test(wordJSON.word))) {
+    getRandomWord()
+    return;
+  }
+  targetWord = wordJSON.word;
+  console.log("🚀 ~ getRandomWord ~ targetWord:", targetWord);
+  startInteraction()
+}
+
+async function getDefinition(enteredWord) {
+  let url = `/api/${enteredWord}/definitions?api_key=${import.meta.env.VITE_WORDNIK_KEY}`
+}
+
+
 function getActiveTiles() {
-  return guessGrid.querySelectorAll('[data-state="active"]')
+  return guessGrid.querySelectorAll('[data-state="active"]');
+}
+
+function showAlert(message, duration = 1000) {
+  const alert = document.createElement("div");
+  alert.textContent = message;
+  alert.classList.add("alert");
+  alertContainer.prepend(alert)
+  if (duration == null) return;
+
+  setTimeout(() => {
+    alert.classList.add("hide")
+    alert.addEventListener('transitionend', () => alert.remove())
+  }, duration);
 }
 
 // **********************
 // Game logic functions
 
-async function getRandomWord() {
-  const response = await fetch(`/api/randomWord?api_key=${import.meta.env.VITE_WORDNIK_KEY}&minLength=${WORD_LENGTH}&maxLength=${WORD_LENGTH}`)
-  const wordJSON = await response.json()
-  targetWord = wordJSON.word
-  console.log("🚀 ~ getRandomWord ~ targetWord:", targetWord)
+
+function flipTile(tile, index, array, guess) {
+  const letter = tile.dataset.letter
+  const key = keyboard.querySelector(`[data-key="${letter}"i]`)
+
+  if (targetWord[index] === letter) {
+    tile.dataset.state = "correct"
+    key.classList.add("correct")
+  } else if (targetWord.includes(letter)) {
+    tile.dataset.state = 'wrong-location'
+    key.classList.add("wrong-location")
+  } else {
+    tile.dataset.state = "wrong"
+    key.classList.add("wrong")
+  }
+  if (index == array.length - 1) {
+    checkWinLose(guess, array)
+
+  }
+}
+
+function checkWinLose(guess, tiles) {
+  if (guess == targetWord) {
+    showAlert("You Win", 5000)
+    stopInteraction()
+    return
+  }
+  const remainingTiles = guessGrid.querySelectorAll(":not([data-letter])")
+  if (remainingTiles.length === 0) {
+    showAlert(targetWord.toUpperCase(), null)
+    stopInteraction()
+  }
 }
 
 // ***************************
@@ -31,28 +93,43 @@ async function getRandomWord() {
 function pressKey(key) {
   const activeTiles = getActiveTiles();
   if (activeTiles.length >= 5) return;
-  const nextTile = guessGrid.querySelector(":not([data-letter])")
+  const nextTile = guessGrid.querySelector(":not([data-letter])");
   nextTile.textContent = key;
   nextTile.dataset.letter = key.toLowerCase();
-  nextTile.dataset.state = "active"
-  }
-  
+  nextTile.dataset.state = "active";
+}
+
 function deleteKey() {
   const activeTiles = getActiveTiles();
   const lastTile = activeTiles[activeTiles.length - 1];
   if (lastTile == null) return;
-  lastTile.textContent = ""
-  delete lastTile.dataset.letter
-  delete lastTile.dataset.state
+  lastTile.textContent = "";
+  delete lastTile.dataset.letter;
+  delete lastTile.dataset.state;
 }
 
 function submitGuess() {
   const activeTiles = [...getActiveTiles()];
   const guess = activeTiles.reduce((word, tile) => {
-      return word + tile.dataset.letter
-  }, "")
-  console.log("🚀 ~ guess ~ guess:", guess)
-  
+    return word + tile.dataset.letter;
+  }, "");
+  console.log("🚀 ~ guess ~ guess:", guess);
+  if (activeTiles.length !== WORD_LENGTH) {
+    showAlert("Not enough letters");
+  }
+  // add condition that validates guess in dictionary
+  activeTiles.forEach((...params) => flipTile(...params, guess))
+}
+
+function startInteraction() {
+  document.addEventListener("click", handleMouseClick);
+  document.addEventListener("keydown", handleKeyPress);
+
+}
+function stopInteraction() {
+  document.removeEventListener("click", handleMouseClick);
+  document.removeEventListener("keydown", handleKeyPress);
+
 }
 
 // **************************
@@ -60,36 +137,38 @@ function submitGuess() {
 
 function handleMouseClick(e) {
   if (e.target.matches("[data-key]")) {
-     pressKey(e.target.dataset.key)
-     return;
+    pressKey(e.target.dataset.key);
+    return;
   }
   // console.log(e.target)
   if (e.target.matches("[data-delete]")) {
-    console.log('delete pressed')
-    deleteKey()
+    console.log("delete pressed");
+    deleteKey();
     return;
   }
-
+  
   if (e.target.matches("[data-enter]")) {
-    submitGuess()
+    submitGuess();
     return;
   }
 }
 
-function handleKeyPress(e){
-  console.log(e.key)
+function handleKeyPress(e) {
+  console.log(e.key);
   if (e.key.match(/^[a-z]$/)) {
-    pressKey(e.key)
-    return
+    pressKey(e.key);
+    return;
+  }
+  
+  if (e.key === "Backspace" || e.key === "Delete") {
+    deleteKey();
   }
 
-  if (e.key === "Backspace" || e.key === "Delete") {
-    deleteKey()
+  if (e.key == "Enter") {
+    submitGuess();
+    return;
   }
 }
 
 
-document.addEventListener('click', handleMouseClick)
-document.addEventListener('keydown', handleKeyPress)
-
-getRandomWord()
+getRandomWord();

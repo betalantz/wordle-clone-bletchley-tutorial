@@ -14,7 +14,7 @@ let targetWord;
 
 async function getRandomWord() {
   const response = await fetch(
-    `/api/randomWord?api_key=${
+    `/api/words.json/randomWord?api_key=${
       import.meta.env.VITE_WORDNIK_KEY
     }&minLength=${WORD_LENGTH}&maxLength=${WORD_LENGTH}`
   );
@@ -29,7 +29,25 @@ async function getRandomWord() {
 }
 
 async function getDefinition(enteredWord) {
-  let url = `/api/${enteredWord}/definitions?api_key=${import.meta.env.VITE_WORDNIK_KEY}`
+  let url = `/api/word.json/${enteredWord}/definitions?api_key=${import.meta.env.VITE_WORDNIK_KEY}`
+  try {
+    const response = await fetch(url);
+    if (response.ok) {
+      const result = await response.json();
+     return result
+    } else {
+      throw new Error("Entry not found")
+    }
+  } catch (err) {
+    console.log(err)
+    return;
+  }
+}
+
+async function validateWord(guess){
+  const wordDefinition = await getDefinition(guess)
+  // debugger
+  return !!wordDefinition[0] && wordDefinition[0].hasOwnProperty('word')
 }
 
 
@@ -108,7 +126,7 @@ function deleteKey() {
   delete lastTile.dataset.state;
 }
 
-function submitGuess() {
+async function submitGuess() {
   const activeTiles = [...getActiveTiles()];
   const guess = activeTiles.reduce((word, tile) => {
     return word + tile.dataset.letter;
@@ -118,6 +136,11 @@ function submitGuess() {
     showAlert("Not enough letters");
   }
   // add condition that validates guess in dictionary
+  
+if (!(await validateWord(guess))) {
+    showAlert("Not a known word!")
+    return;
+  }
   activeTiles.forEach((...params) => flipTile(...params, guess))
 }
 
